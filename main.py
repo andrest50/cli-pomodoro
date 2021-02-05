@@ -4,30 +4,26 @@ from rich.text import Text
 from datetime import datetime
 from datetime import timedelta
 from win10toast import ToastNotifier
+from tinydb import TinyDB, Query
 import sched, time
 import sys
 import cursor
-from tinydb import TinyDB, Query
 
 """
 In development.
 
 To do:
--Error handling
 -Keep track of total time spent studying
 -Store study time and settings in a database using tinydb
 -Add option to auto start next session
 """
 
 def showTimeLeft(console, time_left):
-    #sys.stdout.write("\r%s" % format(time_left))
     console.print("{}".format(time_left), end = "\r")
 
-def startTimer(console, current_session_type):
-    startAt = current_session_type * 60
-    #now = datetime.now().time()
-    #t2 = now.strftime("%M:%S")
-    #starttime = time.time()
+def startTimer(console, session_length):
+    time_left_seconds = session_length * 60
+
     """
     with Progress() as progress:
         task1 = progress.add_task("Studying...", total=1500)
@@ -38,10 +34,10 @@ def startTimer(console, current_session_type):
     valid = 1
     while(valid != 0):
         try:
-            while startAt >= 0:
-                t1 = timedelta(seconds = startAt)
-                showTimeLeft(console, t1)
-                startAt -= 1
+            while time_left_seconds >= 0:
+                time_left = timedelta(seconds = time_left_seconds)
+                time_left_seconds -= 1
+                showTimeLeft(console, time_left)
                 time.sleep(1.0)
             valid = 0
             print("")
@@ -51,13 +47,18 @@ def startTimer(console, current_session_type):
             console.print("(2) Finish early", style="bold red")
             option = int(input())
             if(option == 2):
-                return
+                return session_length * 60 - time_left_seconds
                 
     console.print("Time is up!", style="bold red")
     toast = ToastNotifier()
     toast.show_toast("Cli-Pomodoro", "Your session has finished!", duration=5)
 
+    return session_length * 60
+
 def printSettings(console, settings):
+    """
+    Print the available settings
+    """
     console.print("--------------------------------", style="red")
     console.print("Settings", style="bold red")
     console.print("(1) Pomodoro: {}".format(settings['pomodoro']), style="bold red")
@@ -68,74 +69,117 @@ def printSettings(console, settings):
     console.print("--------------------------------", style="red")
 
 def viewSettings(console, settings):
+    """
+    Display the settings and allow for changes to be made
+    """
     printSettings(console, settings)
-    choice = int(console.input("[bold red]:[/] "))
-    if(choice == 1):
-        console.print("New pomodoro time (max of 150 mins.)", style="red bold")
-        choice = int(console.input("[bold red]:[/] "))
-        settings["pomodoro"] = choice
-    elif(choice == 2):
-        console.print("New short break time (max of 20 mins.)", style="red bold")
-        choice = int(console.input("[bold red]:[/] "))
-        settings["short_break"] = choice
-    elif(choice == 3):
-        console.print("New long break time (max of 40 mins.)", style="red bold")
-        choice = int(console.input("[bold red]:[/] "))
-        settings["long_break"] = choice
-    elif(choice == 4):
-        console.print("New number of sessions until each long break (max of 10)", style="red bold")
-        choice = int(console.input("[bold red]:[/] "))
-        settings["sessions_until_long"] = choice
+
+    again = 1
+    while(again == 1):
+        try:
+            choice = int(console.input("[bold red]:[/] "))
+            again = 0
+            if(choice == 1):
+                console.print("New pomodoro time (max of 150 mins.)", style="red bold")
+                choice = int(console.input("[bold red]:[/] "))
+                settings["pomodoro"] = choice
+            elif(choice == 2):
+                console.print("New short break time (max of 20 mins.)", style="red bold")
+                choice = int(console.input("[bold red]:[/] "))
+                settings["short_break"] = choice
+            elif(choice == 3):
+                console.print("New long break time (max of 40 mins.)", style="red bold")
+                choice = int(console.input("[bold red]:[/] "))
+                settings["long_break"] = choice
+            elif(choice == 4):
+                console.print("New number of sessions until each long break (max of 10)", style="red bold")
+                choice = int(console.input("[bold red]:[/] "))
+                settings["sessions_until_long"] = choice
+            else:
+                again = 1
+        except ValueError:
+            console.print("Input must be an integer", style="bold red")
+            again = 1
 
 def changeSession(console):
+    """
+    Allow for changing the current session type and return the user's numerical choice
+    """
     console.print("Change the current session type: ", style="red bold")
     console.print("(1) Pomodoro", style="red bold")
     console.print("(2) Short break", style="red bold")
     console.print("(3) Long break", style="red bold")
     console.print("(0) Return to menu", style="red bold")
-    choice = int(console.input("[bold red]:[/] "))
-    return choice
 
+    again = 1
+    while(again == 1):
+        try:
+            choice = int(console.input("[bold red]:[/] "))
+            if(choice < 0 or choice > 3):
+                continue
+            return choice
+        except ValueError:
+            console.print("Input must be an integer", style="bold red")
+            again = 1
 
 def main():
+    """
+    Initialize variables 
+    """
     console = Console(width=40)
     cursor.hide()
-    choice = 0
     settings = {
         "pomodoro": 25,
         "short_break": 5,
         "long_break": 10,
         "sessions_until_long": 2,
     }
-    sessions = ['pomodoro', 'short_break', 'long_break']
-    current_session_type = 0
+    session_types = ['pomodoro', 'short_break', 'long_break']
+    current_session_type = 0 #0 - pomodoro, 1 - short break, 2 - long break
     current_session_num = 1
-    while True:
+    total_time_studied = 0
+    choice = 0
+
+    while True: 
+        """
+        Print main menu information after each session or when returning from another menu
+        """
         console.print("Pomodoro Timer", style="dark_slate_gray2 on red", justify="left")
         console.print("--------------------------------", style="red")
-        console.print(f"Current session: {sessions[current_session_type].replace('_', ' ')}", style="bold red")
-        if(current_session_type == 0):
+        console.print(f"Current session: {session_types[current_session_type].replace('_', ' ')}", style="bold red")
+        if(current_session_type == 0): #Only show session number when it is a pomodoro session
             console.print(f"Session #{current_session_num}", style="bold red")
-        console.print(f"Session length: {settings[sessions[current_session_type]]} minutes", style="bold red")
+        console.print(f"Session length: {settings[session_types[current_session_type]]} minutes", style="bold red")
+        console.print(f"Total time studied: {timedelta(seconds = total_time_studied)}", style="bold red")
         console.print("--------------------------------", style="red")
         console.print("Press 1 to start session.", style="red bold")
         console.print("Press 2 to adjust settings.", style="red bold")
         console.print("Press 3 to change current session.", style="red bold")
         console.print("Press 0 to quit.", style="red bold")
+        
         choice = int(console.input("[bold red]:[/] "))
+
+        """
+        Perform action depending on user's input
+        """
         if(choice == 1):
-            startTimer(console, settings[sessions[current_session_type]])
+            session_time_studied = startTimer(console, settings[session_types[current_session_type]])
+            if(current_session_type == 0): # Only add session time if it is the pomodoro session
+                total_time_studied += session_time_studied
         elif(choice == 2):
             viewSettings(console, settings)
             continue
         elif(choice == 3):
             new_session = changeSession(console)
-            if(new_session != 0):
+            if(new_session >= 1 and new_session <= 3):
                 current_session_type = new_session - 1
             continue
         elif(choice == 0):
             sys.exit(0)
 
+        """
+        Change the current session and update the session number
+        """
         if(current_session_type == 1 or current_session_type == 2):
             current_session_type = 0
         elif(current_session_type == 0 and current_session_num % (settings["sessions_until_long"] + 1) == 0):
@@ -144,7 +188,6 @@ def main():
         else:
             current_session_num += 1
             current_session_type = 1
-
 
 if __name__ == '__main__':
     main()
