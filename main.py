@@ -50,7 +50,7 @@ def startTimer(console, session_length):
                 
     console.print("Time is up!", style="bold red")
     toast = ToastNotifier()
-    toast.show_toast("Cli-Pomodoro", "Your session has finished!", duration=5)
+    toast.show_toast("Cli-Pomodoro", "Your session has ended!", duration=5)
 
     return session_length * 60
 
@@ -67,38 +67,53 @@ def printSettings(console, settings):
     console.print("(0) Return to menu", style="bold red")
     console.print("--------------------------------", style="red")
 
+def getUserInput(console):
+    choice = 0
+    again = True
+    while(again):
+        try:
+            choice = int(console.input("[bold red]:[/] "))
+            again = False
+        except ValueError:
+            console.print("Input must be an integer", style="bold red")
+
+    return choice
+
 def viewSettings(console, settings):
     """
     Display the settings and allow for changes to be made
     """
     printSettings(console, settings)
 
-    again = 1
-    while(again == 1):
+    dict_string = ""
+    again = True
+    while(again):
         try:
             choice = int(console.input("[bold red]:[/] "))
-            again = 0
-            if(choice == 1):
+            if(choice < 0 or choice > 4):
+                continue
+            elif(choice == 0):
+                break
+            elif(choice == 1):
                 console.print("New pomodoro time (max of 150 mins.)", style="red bold")
-                choice = int(console.input("[bold red]:[/] "))
-                settings["pomodoro"] = choice
+                dict_string = "pomodoro"
             elif(choice == 2):
                 console.print("New short break time (max of 20 mins.)", style="red bold")
-                choice = int(console.input("[bold red]:[/] "))
-                settings["short_break"] = choice
+                dict_string = "short_break"
             elif(choice == 3):
                 console.print("New long break time (max of 40 mins.)", style="red bold")
-                choice = int(console.input("[bold red]:[/] "))
-                settings["long_break"] = choice
+                dict_string = "long_break"
             elif(choice == 4):
                 console.print("New number of sessions until each long break (max of 10)", style="red bold")
-                choice = int(console.input("[bold red]:[/] "))
-                settings["sessions_until_long"] = choice
-            else:
-                again = 1
+                dict_string = "sessions_until_long"
+
+            again = False
+            
+            choice = getUserInput(console)
+            settings[dict_string] = choice
+            
         except ValueError:
             console.print("Input must be an integer", style="bold red")
-            again = 1
 
 def changeSession(console):
     """
@@ -110,31 +125,41 @@ def changeSession(console):
     console.print("(3) Long break", style="red bold")
     console.print("(0) Return to menu", style="red bold")
 
-    again = 1
-    while(again == 1):
+    again = True
+    while(again):
         try:
             choice = int(console.input("[bold red]:[/] "))
-            if(choice < 0 or choice > 3):
-                continue
-            return choice
+            if(choice >= 0 and choice <= 3):
+                return choice
         except ValueError:
             console.print("Input must be an integer", style="bold red")
-            again = 1
+
+def initializeDatabase():
+    db = TinyDB('db.json')
+    data = db.all()
+    if(not data): # If first-time user
+        db.insert({
+            "name": "base_user",
+            "pomodoro": 25,
+            "short_break": 5,
+            "long_break": 10,
+            "sessions_until_long": 2,
+            "total_time_studied": 0,
+            "sessions": []
+        })
+    return db
 
 def main():
+    db = initializeDatabase()
+
     """
     Initialize variables 
     """
     console = Console(width=40)
     cursor.hide()
-    settings = {
-        "pomodoro": 25,
-        "short_break": 5,
-        "long_break": 10,
-        "sessions_until_long": 2,
-    }
+    user = db.all()[0]  # Get the first item in the database (there should only be one item)
     session_types = ['pomodoro', 'short_break', 'long_break']
-    current_session_type = 0 #0 - pomodoro, 1 - short break, 2 - long break
+    current_session_type = 0  #0 - pomodoro, 1 - short break, 2 - long break
     current_session_num = 1
     total_time_studied = 0
     choice = 0
@@ -148,7 +173,7 @@ def main():
         console.print(f"Current session: {session_types[current_session_type].replace('_', ' ')}", style="bold red")
         if(current_session_type == 0): #Only show session number when it is a pomodoro session
             console.print(f"Session #{current_session_num}", style="bold red")
-        console.print(f"Session length: {settings[session_types[current_session_type]]} minutes", style="bold red")
+        console.print(f"Session length: {user[session_types[current_session_type]]} minutes", style="bold red")
         console.print(f"Total time studied: {timedelta(seconds = total_time_studied)}", style="bold red")
         console.print("--------------------------------", style="red")
         console.print("Press 1 to start session.", style="red bold")
@@ -156,25 +181,24 @@ def main():
         console.print("Press 3 to change current session.", style="red bold")
         console.print("Press 0 to quit.", style="red bold")
         
-        again = 1
-        while(again == 1):
+        again = True
+        while(again):
             try:
                 choice = int(console.input("[bold red]:[/] "))
-                if(choice > 3 or choice < 0):
-                again = 0
+                if(choice >= 0 and choice <= 3):
+                    again = False
             except ValueError:
                 console.print("Input must be an integer", style="bold red")
-                again = 1
 
         """
         Perform action depending on user's input
         """
         if(choice == 1):
-            session_time_studied = startTimer(console, settings[session_types[current_session_type]])
+            session_time_studied = startTimer(console, user[session_types[current_session_type]])
             if(current_session_type == 0): # Only add session time if it is the pomodoro session
                 total_time_studied += session_time_studied
         elif(choice == 2):
-            viewSettings(console, settings)
+            viewSettings(console, user)
             continue
         elif(choice == 3):
             new_session = changeSession(console)
@@ -182,6 +206,14 @@ def main():
                 current_session_type = new_session - 1
             continue
         elif(choice == 0):
+            user['total_time_studied'] += total_time_studied # Track time studied across all program runs
+            program_run_data = {
+                "time_studied": total_time_studied,
+                "sessions_completed": current_session_num - 1
+            }
+            user['sessions'].append(program_run_data) # Track time studied during current program run
+            User = Query()
+            db.update(user, User.name == 'base_user')
             sys.exit(0)
 
         """
@@ -190,7 +222,7 @@ def main():
         if(current_session_type == 1 or current_session_type == 2): # If it is a break session
             current_session_type = 0
         elif(current_session_type == 0): # If it is a pomodoro session
-            if(current_session_num % (settings["sessions_until_long"]) == 0):
+            if(current_session_num % (user["sessions_until_long"]) == 0):
                 current_session_type = 2
             else:
                 current_session_type = 1

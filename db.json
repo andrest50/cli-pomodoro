@@ -1,0 +1,16 @@
+{
+  "_default": {
+    "1": {
+      "name": "base_user",
+      "pomodoro": 1,
+      "short_break": 8,
+      "long_break": 10,
+      "sessions_until_long": 3,
+      "total_time_studied": 23,
+      "sessions": [
+        { "time_studied": 11, "sessions_completed": 2 },
+        { "time_studied": 12, "sessions_completed": 3 }
+      ]
+    }
+  }
+}
