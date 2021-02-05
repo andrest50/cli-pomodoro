@@ -13,32 +13,31 @@ import cursor
 In development.
 
 To do:
--Keep track of total time spent studying
+-Add tasks
 -Store study time and settings in a database using tinydb
 -Add option to auto start next session
 """
 
 def showTimeLeft(console, time_left):
-    console.print("{}".format(time_left), end = "\r")
+    console.print(f"{time_left}", end = "\r")
 
 def startTimer(console, session_length):
     time_left_seconds = session_length * 60
 
-    """
-    with Progress() as progress:
-        task1 = progress.add_task("Studying...", total=1500)
-        while not progress.finished:
-            progress.update(task1, advance=0.5)
-            time.sleep(1.0)
-    """
+    # with Progress() as progress:
+    #     task1 = progress.add_task("Studying...", total=1500)
+    #     while not progress.finished:
+    #         progress.update(task1, advance=0.5)
+    #         time.sleep(1.0)
+
     valid = 1
     while(valid != 0):
         try:
             while time_left_seconds >= 0:
-                time_left = timedelta(seconds = time_left_seconds)
+                time_left = timedelta(seconds = time_left_seconds) # Convert seconds into timedelta object
+                showTimeLeft(console, time_left) # Print time left
+                time.sleep(1.0) # Wait a second to update time
                 time_left_seconds -= 1
-                showTimeLeft(console, time_left)
-                time.sleep(1.0)
             valid = 0
             print("")
         except KeyboardInterrupt:
@@ -61,10 +60,10 @@ def printSettings(console, settings):
     """
     console.print("--------------------------------", style="red")
     console.print("Settings", style="bold red")
-    console.print("(1) Pomodoro: {}".format(settings['pomodoro']), style="bold red")
-    console.print("(2) Short break: {}".format(settings["short_break"]), style="bold red")
-    console.print("(3) Long break: {}".format(settings["long_break"]), style="bold red")
-    console.print("(4) Sessions until each long break: {}".format(settings["sessions_until_long"]), style="bold red")
+    console.print(f"(1) Pomodoro: {settings['pomodoro']}", style="bold red")
+    console.print(f"(2) Short break: {settings['short_break']}", style="bold red")
+    console.print(f"(3) Long break: {settings['long_break']}", style="bold red")
+    console.print(f"(4) Sessions until each long break: {settings['sessions_until_long']}", style="bold red")
     console.print("(0) Return to menu", style="bold red")
     console.print("--------------------------------", style="red")
 
@@ -157,7 +156,15 @@ def main():
         console.print("Press 3 to change current session.", style="red bold")
         console.print("Press 0 to quit.", style="red bold")
         
-        choice = int(console.input("[bold red]:[/] "))
+        again = 1
+        while(again == 1):
+            try:
+                choice = int(console.input("[bold red]:[/] "))
+                if(choice > 3 or choice < 0):
+                again = 0
+            except ValueError:
+                console.print("Input must be an integer", style="bold red")
+                again = 1
 
         """
         Perform action depending on user's input
@@ -180,14 +187,14 @@ def main():
         """
         Change the current session and update the session number
         """
-        if(current_session_type == 1 or current_session_type == 2):
+        if(current_session_type == 1 or current_session_type == 2): # If it is a break session
             current_session_type = 0
-        elif(current_session_type == 0 and current_session_num % (settings["sessions_until_long"] + 1) == 0):
+        elif(current_session_type == 0): # If it is a pomodoro session
+            if(current_session_num % (settings["sessions_until_long"]) == 0):
+                current_session_type = 2
+            else:
+                current_session_type = 1
             current_session_num += 1
-            current_session_type = 2
-        else:
-            current_session_num += 1
-            current_session_type = 1
 
 if __name__ == '__main__':
     main()
