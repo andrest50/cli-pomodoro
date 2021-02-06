@@ -1,8 +1,7 @@
 from rich.console import Console
 from rich.progress import Progress
 from rich.text import Text
-from datetime import datetime
-from datetime import timedelta
+from datetime import datetime, timedelta, date
 from win10toast import ToastNotifier
 from tinydb import TinyDB, Query
 import sched, time
@@ -14,7 +13,7 @@ In development.
 
 To do:
 -Add tasks
--Store study time and settings in a database using tinydb
+-Organize data better
 -Add option to auto start next session
 """
 
@@ -143,9 +142,9 @@ def initializeDatabase():
             "pomodoro": 25,
             "short_break": 5,
             "long_break": 10,
-            "sessions_until_long": 2,
+            "sessions_until_long": 4,
             "total_time_studied": 0,
-            "sessions": []
+            "days": []
         })
     return db
 
@@ -207,11 +206,27 @@ def main():
             continue
         elif(choice == 0):
             user['total_time_studied'] += total_time_studied # Track time studied across all program runs
-            program_run_data = {
-                "time_studied": total_time_studied,
-                "sessions_completed": current_session_num - 1
-            }
-            user['sessions'].append(program_run_data) # Track time studied during current program run
+            today = date.today().strftime("%m/%d/%y")
+            element = None
+            for session in user['days']: # Look for today's date to update the data
+                if(session['date'] == today):
+                    element = session
+            print(element)
+            if(element):
+                program_run_data = {
+                    "date": element['date'],
+                    "time_studied": element['time_studied'] + total_time_studied,
+                    "sessions_completed": element['sessions_completed'] + current_session_num - 1
+                }
+                user['days'].pop(len(user['days'])-1)
+            else:
+                program_run_data = {
+                    "date": today,
+                    "time_studied": total_time_studied,
+                    "sessions_completed": current_session_num - 1
+                }
+
+            user['days'].append(program_run_data) # Track time studied during current program run
             User = Query()
             db.update(user, User.name == 'base_user')
             sys.exit(0)

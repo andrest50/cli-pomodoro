@@ -1,0 +1,16 @@
+{
+    "_default": {
+      "1": {
+        "name": "base_user",
+        "pomodoro": 25,
+        "short_break": 5,
+        "long_break": 10,
+        "sessions_until_long": 4,
+        "total_time_studied": 18,
+        "days": [
+          { "date": "02/05/21", "time_studied": 18, "sessions_completed": 4 }
+        ]
+      }
+    }
+  }
+  
