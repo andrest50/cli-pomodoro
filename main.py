@@ -13,8 +13,9 @@ In development.
 
 To do:
 -Add tasks
--Organize data better
--Add option to auto start next session
+-Maybe add a progress bar along with timer
+-Refactor code
+-Add more comments
 """
 
 def showTimeLeft(console, time_left):
@@ -23,29 +24,30 @@ def showTimeLeft(console, time_left):
 def startTimer(console, session_length):
     time_left_seconds = session_length * 60
 
-    # with Progress() as progress:
-    #     task1 = progress.add_task("Studying...", total=1500)
-    #     while not progress.finished:
-    #         progress.update(task1, advance=0.5)
-    #         time.sleep(1.0)
-
-    valid = 1
-    while(valid != 0):
+    active = True
+    while(active):
         try:
             while time_left_seconds >= 0:
                 time_left = timedelta(seconds = time_left_seconds) # Convert seconds into timedelta object
                 showTimeLeft(console, time_left) # Print time left
                 time.sleep(1.0) # Wait a second to update time
                 time_left_seconds -= 1
-            valid = 0
+            active = False
             print("")
         except KeyboardInterrupt:
             console.print("\nTime paused!", style="bold red")
             console.print("(1) Continue", style="bold red")
             console.print("(2) Finish early", style="bold red")
-            option = int(input())
-            if(option == 2):
-                return session_length * 60 - time_left_seconds
+            again = True
+            while(again):
+                try:
+                    option = int(console.input("[bold red]:[/] "))
+                    if(option == 1):
+                        again = False
+                    elif(option == 2):
+                        return session_length * 60 - time_left_seconds
+                except ValueError:
+                    console.print("Input must be an integer", style="bold red")
                 
     console.print("Time is up!", style="bold red")
     toast = ToastNotifier()
@@ -63,6 +65,7 @@ def printSettings(console, settings):
     console.print(f"(2) Short break: {settings['short_break']}", style="bold red")
     console.print(f"(3) Long break: {settings['long_break']}", style="bold red")
     console.print(f"(4) Sessions until each long break: {settings['sessions_until_long']}", style="bold red")
+    console.print(f"(5) Auto start sessions: {settings['auto_start']}", style="bold red")
     console.print("(0) Return to menu", style="bold red")
     console.print("--------------------------------", style="red")
 
@@ -89,7 +92,7 @@ def viewSettings(console, settings):
     while(again):
         try:
             choice = int(console.input("[bold red]:[/] "))
-            if(choice < 0 or choice > 4):
+            if(choice < 0 or choice > 5):
                 continue
             elif(choice == 0):
                 break
@@ -105,6 +108,15 @@ def viewSettings(console, settings):
             elif(choice == 4):
                 console.print("New number of sessions until each long break (max of 10)", style="red bold")
                 dict_string = "sessions_until_long"
+            elif(choice == 5):
+                console.print("Auto start sessions (y or n)", style="red bold")
+                yes_or_no = input()
+                if(yes_or_no.lower() == 'y'):
+                    settings['auto_start'] = True
+                elif(yes_or_no.lower() == 'n'):
+                    settings['auto_start'] = False
+                again = False
+                continue
 
             again = False
             
@@ -139,14 +151,27 @@ def initializeDatabase():
     if(not data): # If first-time user
         db.insert({
             "name": "base_user",
-            "pomodoro": 25,
-            "short_break": 5,
-            "long_break": 10,
-            "sessions_until_long": 4,
+            "settings": {
+                "pomodoro": 25,
+                "short_break": 5,
+                "long_break": 10,
+                "sessions_until_long": 4,
+                "auto_start": False
+            },
             "total_time_studied": 0,
             "days": []
         })
     return db
+
+def nextSession(user, today_stats):
+    if(today_stats["current_session_type"] == 1 or today_stats["current_session_type"] == 2): # If it is a break session
+        today_stats["current_session_type"] = 0
+    elif(today_stats["current_session_type"] == 0): # If it is a pomodoro session
+        if(today_stats["current_session_num"] % (user["settings"]["sessions_until_long"]) == 0):
+            today_stats["current_session_type"] = 2
+        else:
+            today_stats["current_session_type"] = 1
+        today_stats["current_session_num"] += 1
 
 def main():
     db = initializeDatabase()
@@ -158,9 +183,11 @@ def main():
     cursor.hide()
     user = db.all()[0]  # Get the first item in the database (there should only be one item)
     session_types = ['pomodoro', 'short_break', 'long_break']
-    current_session_type = 0  #0 - pomodoro, 1 - short break, 2 - long break
-    current_session_num = 1
-    total_time_studied = 0
+    today_stats = {
+        "current_session_type": 0,  # 0 - pomodoro, 1 - short break, 2 - long break
+        "current_session_num": 1,
+        "total_time_studied": 0
+    }
     choice = 0
 
     while True: 
@@ -169,11 +196,11 @@ def main():
         """
         console.print("Pomodoro Timer", style="dark_slate_gray2 on red", justify="left")
         console.print("--------------------------------", style="red")
-        console.print(f"Current session: {session_types[current_session_type].replace('_', ' ')}", style="bold red")
-        if(current_session_type == 0): #Only show session number when it is a pomodoro session
-            console.print(f"Session #{current_session_num}", style="bold red")
-        console.print(f"Session length: {user[session_types[current_session_type]]} minutes", style="bold red")
-        console.print(f"Total time studied: {timedelta(seconds = total_time_studied)}", style="bold red")
+        console.print(f"Current session: {session_types[today_stats['current_session_type']].replace('_', ' ')}", style="bold red")
+        if(today_stats['current_session_type'] == 0): #Only show session number when it is a pomodoro session
+            console.print(f"Session #{today_stats['current_session_num']}", style="bold red")
+        console.print(f"Session length: {user['settings'][session_types[today_stats['current_session_type']]]} minutes", style="bold red")
+        console.print(f"Total time studied: {timedelta(seconds = today_stats['total_time_studied'])}", style="bold red")
         console.print("--------------------------------", style="red")
         console.print("Press 1 to start session.", style="red bold")
         console.print("Press 2 to adjust settings.", style="red bold")
@@ -193,37 +220,47 @@ def main():
         Perform action depending on user's input
         """
         if(choice == 1):
-            session_time_studied = startTimer(console, user[session_types[current_session_type]])
-            if(current_session_type == 0): # Only add session time if it is the pomodoro session
-                total_time_studied += session_time_studied
+            restart = True
+            while(restart): # Start sessions automatically
+                session_time_studied = startTimer(console, user['settings'][session_types[today_stats["current_session_type"]]])
+                if(today_stats["current_session_type"] == 0): # Only add session time if it is the pomodoro session
+                    today_stats["total_time_studied"] += session_time_studied
+
+                if(session_time_studied < user['settings'][session_types[today_stats["current_session_type"]]] * 60
+                    or user['settings']['auto_start'] == False): # Don't auto start
+                    restart = False
+                    continue
+                nextSession(user, today_stats) # Change session
+                console.print(f"Current session: {session_types[today_stats['current_session_type']].replace('_', ' ')}", style="bold red")
         elif(choice == 2):
-            viewSettings(console, user)
+            viewSettings(console, user['settings'])
             continue
         elif(choice == 3):
             new_session = changeSession(console)
             if(new_session >= 1 and new_session <= 3):
-                current_session_type = new_session - 1
+                today_stats["current_session_type"] = new_session - 1
             continue
         elif(choice == 0):
-            user['total_time_studied'] += total_time_studied # Track time studied across all program runs
+            user['total_time_studied'] += today_stats["total_time_studied"] # Track time studied across all program runs
             today = date.today().strftime("%m/%d/%y")
             element = None
+            
             for session in user['days']: # Look for today's date to update the data
                 if(session['date'] == today):
                     element = session
-            print(element)
+
             if(element):
                 program_run_data = {
                     "date": element['date'],
-                    "time_studied": element['time_studied'] + total_time_studied,
-                    "sessions_completed": element['sessions_completed'] + current_session_num - 1
+                    "time_studied": element['time_studied'] + today_stats["total_time_studied"],
+                    "sessions_completed": element['sessions_completed'] + today_stats["current_session_num"] - 1
                 }
                 user['days'].pop(len(user['days'])-1)
             else:
                 program_run_data = {
                     "date": today,
-                    "time_studied": total_time_studied,
-                    "sessions_completed": current_session_num - 1
+                    "time_studied": today_stats["total_time_studied"],
+                    "sessions_completed": today_stats["current_session_num"] - 1
                 }
 
             user['days'].append(program_run_data) # Track time studied during current program run
@@ -234,14 +271,7 @@ def main():
         """
         Change the current session and update the session number
         """
-        if(current_session_type == 1 or current_session_type == 2): # If it is a break session
-            current_session_type = 0
-        elif(current_session_type == 0): # If it is a pomodoro session
-            if(current_session_num % (user["sessions_until_long"]) == 0):
-                current_session_type = 2
-            else:
-                current_session_type = 1
-            current_session_num += 1
+        nextSession(user, today_stats)
 
 if __name__ == '__main__':
     main()
