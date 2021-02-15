@@ -15,18 +15,25 @@ To do:
 -Add tasks
 -Maybe add a progress bar along with timer
 -Refactor code
--Add more comments
 """
 
 def showTimeLeft(console, time_left):
+    """
+    Function called every second timer is active
+    """
     console.print(f"{time_left}", end = "\r")
 
 def startTimer(console, session_length):
+    """
+    Function for running the timer
+    """
     time_left_seconds = session_length * 60
 
+    # Run the timer until the timer hits zero or user signal to stop
     active = True
     while(active):
         try:
+            # Update the timer and print the time to the terminal
             while time_left_seconds >= 0:
                 time_left = timedelta(seconds = time_left_seconds) # Convert seconds into timedelta object
                 showTimeLeft(console, time_left) # Print time left
@@ -34,21 +41,25 @@ def startTimer(console, session_length):
                 time_left_seconds -= 1
             active = False
             print("")
+
+        # If the user is trying to exit the timer or program by sending a signal (Ctrl-C)
         except KeyboardInterrupt:
             console.print("\nTime paused!", style="bold red")
             console.print("(1) Continue", style="bold red")
             console.print("(2) Finish early", style="bold red")
             again = True
+
+            # Prompt the user for input until it is validly provided
             while(again):
-                try:
-                    option = int(console.input("[bold red]:[/] "))
-                    if(option == 1):
-                        again = False
-                    elif(option == 2):
-                        return session_length * 60 - time_left_seconds
-                except ValueError:
-                    console.print("Input must be an integer", style="bold red")
+                option = getUserInput(console)
+
+                # User input of 1 to continue timer and 2 to end timer
+                if(option == 1):
+                    again = False
+                elif(option == 2):
+                    return session_length * 60 - time_left_seconds
                 
+    # Notification that the timer is up
     console.print("Time is up!", style="bold red")
     toast = ToastNotifier()
     toast.show_toast("Cli-Pomodoro", "Your session has ended!", duration=5)
@@ -70,6 +81,9 @@ def printSettings(console, settings):
     console.print("--------------------------------", style="red")
 
 def getUserInput(console):
+    """
+    Function for getting user input with error handling
+    """
     choice = 0
     again = True
     while(again):
@@ -138,17 +152,16 @@ def changeSession(console):
 
     again = True
     while(again):
-        try:
-            choice = int(console.input("[bold red]:[/] "))
-            if(choice >= 0 and choice <= 3):
-                return choice
-        except ValueError:
-            console.print("Input must be an integer", style="bold red")
+        choice = getUserInput(console)
+        if(choice >= 0 and choice <= 3):
+            return choice
 
 def initializeDatabase():
+    """
+    Initialize and return database object
+    """
     db = TinyDB('db.json')
-    data = db.all()
-    if(not data): # If first-time user
+    if(not db.all()): # If first-time user
         db.insert({
             "name": "base_user",
             "settings": {
@@ -164,6 +177,9 @@ def initializeDatabase():
     return db
 
 def nextSession(user, today_stats):
+    """
+    Change to the next session type
+    """
     if(today_stats["current_session_type"] == 1 or today_stats["current_session_type"] == 2): # If it is a break session
         today_stats["current_session_type"] = 0
     elif(today_stats["current_session_type"] == 0): # If it is a pomodoro session
@@ -209,17 +225,14 @@ def main():
         
         again = True
         while(again):
-            try:
-                choice = int(console.input("[bold red]:[/] "))
-                if(choice >= 0 and choice <= 3):
-                    again = False
-            except ValueError:
-                console.print("Input must be an integer", style="bold red")
+            choice = getUserInput(console)
+            if(choice >= 0 and choice <= 3):
+                again = False
 
         """
-        Perform action depending on user's input
+        Perform action depending on user's main menu input
         """
-        if(choice == 1):
+        if(choice == 1): # Start session
             restart = True
             while(restart): # Start sessions automatically
                 session_time_studied = startTimer(console, user['settings'][session_types[today_stats["current_session_type"]]])
@@ -232,46 +245,43 @@ def main():
                     continue
                 nextSession(user, today_stats) # Change session
                 console.print(f"Current session: {session_types[today_stats['current_session_type']].replace('_', ' ')}", style="bold red")
-        elif(choice == 2):
+        elif(choice == 2): # View settings
             viewSettings(console, user['settings'])
             continue
-        elif(choice == 3):
+        elif(choice == 3): # View session change
             new_session = changeSession(console)
             if(new_session >= 1 and new_session <= 3):
                 today_stats["current_session_type"] = new_session - 1
             continue
-        elif(choice == 0):
+        elif(choice == 0): # Exit program
             user['total_time_studied'] += today_stats["total_time_studied"] # Track time studied across all program runs
             today = date.today().strftime("%m/%d/%y")
             element = None
             
-            for session in user['days']: # Look for today's date to update the data
-                if(session['date'] == today):
-                    element = session
+            for day in user['days']: # Look for today's date to update the data
+                if(day['date'] == today):
+                    element = day
 
-            if(element):
+            if(element): # If data for today exists
                 program_run_data = {
                     "date": element['date'],
                     "time_studied": element['time_studied'] + today_stats["total_time_studied"],
                     "sessions_completed": element['sessions_completed'] + today_stats["current_session_num"] - 1
                 }
-                user['days'].pop(len(user['days'])-1)
-            else:
+                user['days'].pop(len(user['days'])-1) # Remove the previous data for today
+            else: # If this is the first data for today
                 program_run_data = {
                     "date": today,
                     "time_studied": today_stats["total_time_studied"],
                     "sessions_completed": today_stats["current_session_num"] - 1
                 }
 
-            user['days'].append(program_run_data) # Track time studied during current program run
+            user['days'].append(program_run_data) # Add the data for today to data for all days
             User = Query()
-            db.update(user, User.name == 'base_user')
-            sys.exit(0)
+            db.update(user, User.name == 'base_user') # Update the database
+            sys.exit(0) # Exit the program
 
-        """
-        Change the current session and update the session number
-        """
-        nextSession(user, today_stats)
+        nextSession(user, today_stats) # Change the current session and update the session number
 
 if __name__ == '__main__':
-    main()
+    main() # Start of program
