@@ -1,6 +1,7 @@
 from rich.console import Console
 from rich.progress import Progress
 from rich.text import Text
+from rich.table import Table
 from datetime import datetime, timedelta, date
 from win10toast import ToastNotifier
 from tinydb import TinyDB, Query
@@ -189,6 +190,29 @@ def nextSession(user, today_stats):
             today_stats["current_session_type"] = 1
         today_stats["current_session_num"] += 1
 
+def viewStatistics(console, user, today_stats):
+    """
+    Print overall and daily statistics
+    """
+    console.print("Overall Statistics: ", style="red bold")
+    console.print(f"Total Time Studied: {timedelta(seconds = user['total_time_studied'] + today_stats['total_time_studied'])}\n", style="red bold")
+    table = Table(title="Daily Statistics")
+    table.add_column("Date", justify="center", style="cyan", no_wrap=True)
+    table.add_column("Time Studied", justify="center", style="magenta")
+    table.add_column("Sessions Completed", justify="center", style="green")
+    for day in user['days']:
+        table.add_row(
+            str(day['date']), 
+            str(timedelta(seconds = day['time_studied'])), 
+            str(day['sessions_completed'])
+        )
+    table.add_row(
+        "Current", 
+        str(timedelta(seconds = today_stats['total_time_studied'])), 
+        str(today_stats['current_session_num'] - 1)
+    )
+    console.print(table)
+
 def main():
     db = initializeDatabase()
 
@@ -221,12 +245,13 @@ def main():
         console.print("Press 1 to start session.", style="red bold")
         console.print("Press 2 to adjust settings.", style="red bold")
         console.print("Press 3 to change current session.", style="red bold")
+        console.print("Press 4 to see your stats.", style="red bold")
         console.print("Press 0 to quit.", style="red bold")
         
         again = True
         while(again):
             choice = getUserInput(console)
-            if(choice >= 0 and choice <= 3):
+            if(choice >= 0 and choice <= 4):
                 again = False
 
         """
@@ -252,6 +277,9 @@ def main():
             new_session = changeSession(console)
             if(new_session >= 1 and new_session <= 3):
                 today_stats["current_session_type"] = new_session - 1
+            continue
+        elif(choice == 4): # View statistics
+            viewStatistics(console, user, today_stats)
             continue
         elif(choice == 0): # Exit program
             user['total_time_studied'] += today_stats["total_time_studied"] # Track time studied across all program runs

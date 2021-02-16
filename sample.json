@@ -1,19 +1,19 @@
 {
-    "_default": {
-      "1": {
-        "name": "base_user",
-        "settings": {
-          "pomodoro": 1,
-          "short_break": 1,
-          "long_break": 10,
-          "sessions_until_long": 4,
-          "auto_start": false
-        },
-        "total_time_studied": 187,
-        "days": [
-          { "date": "02/06/21", "time_studied": 187, "sessions_completed": 5 }
-        ]
-      }
+  "_default": {
+    "1": {
+      "name": "base_user",
+      "settings": {
+        "pomodoro": 1,
+        "short_break": 1,
+        "long_break": 10,
+        "sessions_until_long": 4,
+        "auto_start": false
+      },
+      "total_time_studied": 192,
+      "days": [
+        { "date": "02/06/21", "time_studied": 187, "sessions_completed": 5 },
+        { "date": "02/15/21", "time_studied": 5, "sessions_completed": 2 }
+      ]
     }
+  }
 }
-  
