@@ -1,5 +1,5 @@
 # Cli-Pomodoro
-Pomodoro timer in the command line.
+Pomodoro timer for the terminal.
 
 ## Why Use It?
 - Keep track of your time spent studying
