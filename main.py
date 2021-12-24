@@ -3,7 +3,7 @@ from rich.progress import Progress
 from rich.text import Text
 from rich.table import Table
 from datetime import datetime, timedelta, date
-from win10toast import ToastNotifier
+from win10toast_click import ToastNotifier
 from tinydb import TinyDB, Query
 import sched, time
 import sys
