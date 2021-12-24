@@ -10,11 +10,8 @@ import sys
 import cursor
 
 """
-In development.
-
 To do:
 -Add tasks
--Maybe add a progress bar along with timer
 -Refactor code
 """
 

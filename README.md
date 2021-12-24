@@ -15,3 +15,13 @@ Times are customizable.
 3. Repeat steps 1-2 three more times (four total)
 4. Take a 15 minute long break
 5. Back to step 1
+
+## Screenshots
+![Main menu](images/menu.png)
+
+![Statistics](images/stats.png)
+
+![Pause](images/pause.png)
+
+## Code
+Written in Python with [Rich](https://github.com/willmcgugan/rich) for terminal formatting and [TinyDB](https://github.com/msiemens/tinydb) for the local database
