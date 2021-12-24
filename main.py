@@ -3,11 +3,15 @@ from rich.progress import Progress
 from rich.text import Text
 from rich.table import Table
 from datetime import datetime, timedelta, date
-from win10toast_click import ToastNotifier
 from tinydb import TinyDB, Query
 import sched, time
 import sys
 import cursor
+
+OS_WINDOWS = False
+if sys.platform.startswith("win32") or sys.platform.startswith("cygwin"):
+    OS_WINDOWS = True
+    from win10toast_click import ToastNotifier
 
 """
 To do:
@@ -59,8 +63,9 @@ def startTimer(console, session_length):
                 
     # Notification that the timer is up
     console.print("Time is up!", style="bold red")
-    toast = ToastNotifier()
-    toast.show_toast("Cli-Pomodoro", "Your session has ended!", duration=5)
+    if OS_WINDOWS:
+        toast = ToastNotifier()
+        toast.show_toast("Cli-Pomodoro", "Your session has ended!", duration=5)
 
     return session_length * 60
 
