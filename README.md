@@ -1,7 +1,9 @@
 # Cli-Pomodoro
+
 Pomodoro timer for the terminal.
 
 ## Why Use It?
+
 - Keep track of your time spent studying
 - Break up your studying into smaller chunks with breaks
 - Customize the amount of time you want to spend studying in each session
@@ -9,7 +11,9 @@ Pomodoro timer for the terminal.
 - Be notified when a session has ended (on Windows)
 
 ## How Pomodoro Works
+
 Times are customizable.
+
 1. Study for 25 minutes
 2. Take a 5 minute break
 3. Repeat steps 1-2 three more times (four total)
@@ -17,6 +21,7 @@ Times are customizable.
 5. Back to step 1
 
 ## Screenshots
+
 ![Main menu](images/menu.png)
 
 ![Statistics](images/stats.png)
@@ -24,4 +29,5 @@ Times are customizable.
 ![Pause](images/pause.png)
 
 ## Code
+
 Written in Python with [Rich](https://github.com/willmcgugan/rich) for terminal formatting and [TinyDB](https://github.com/msiemens/tinydb) for the local database
